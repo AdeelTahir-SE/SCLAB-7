@@ -6,6 +6,9 @@ package twitter;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * SocialNetwork provides methods that operate on a social network.
@@ -41,8 +44,25 @@ public class SocialNetwork {
      *         either authors or @-mentions in the list of tweets.
      */
     public static Map<String, Set<String>> guessFollowsGraph(List<Tweet> tweets) {
-        throw new RuntimeException("not implemented");
+        Map<String, Set<String>> followsGraph = new HashMap<>();
+        Pattern mentionPattern = Pattern.compile("@([A-Za-z0-9_]+)");
+
+        for (Tweet tweet : tweets) {
+            String author = tweet.getAuthor().toLowerCase();
+            Matcher matcher = mentionPattern.matcher(tweet.getText());
+
+            while (matcher.find()) {
+                String mentioned = matcher.group(1).toLowerCase();
+                if (!mentioned.equals(author)) {
+                    followsGraph.putIfAbsent(author, new HashSet<>());
+                    followsGraph.get(author).add(mentioned);
+                }
+            }
+        }
+
+        return followsGraph;
     }
+
 
     /**
      * Find the people in a social network who have the greatest influence, in
@@ -54,7 +74,18 @@ public class SocialNetwork {
      *         descending order of follower count.
      */
     public static List<String> influencers(Map<String, Set<String>> followsGraph) {
-        throw new RuntimeException("not implemented");
+        Map<String, Integer> followerCount = new HashMap<>();
+
+        for (Map.Entry<String, Set<String>> entry : followsGraph.entrySet()) {
+            for (String followed : entry.getValue()) {
+                followerCount.put(followed, followerCount.getOrDefault(followed, 0) + 1);
+            }
+            followerCount.putIfAbsent(entry.getKey(), followerCount.getOrDefault(entry.getKey(), 0));
+        }
+
+        List<String> influencers = new ArrayList<>(followerCount.keySet());
+        influencers.sort((a, b) -> followerCount.get(b).compareTo(followerCount.get(a)));
+        return influencers;
     }
 
 }

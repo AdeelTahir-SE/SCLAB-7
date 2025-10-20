@@ -3,15 +3,13 @@
  */
 package twitter;
 
-import static org.junit.Assert.*;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import org.junit.Test;
+
+import java.time.Instant;
+import java.util.*;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class SocialNetworkTest {
 
@@ -20,27 +18,109 @@ public class SocialNetworkTest {
      * See the ic03-testing exercise for examples of what a testing strategy comment looks like.
      * Make sure you have partitions.
      */
+
+    private static final Instant time1 = Instant.parse("2023-02-01T10:00:00Z");
+    private static final Instant time2 = Instant.parse("2023-02-01T11:00:00Z");
     
     @Test(expected=AssertionError.class)
     public void testAssertionsEnabled() {
         assert false; // make sure assertions are enabled with VM argument: -ea
     }
-    
+    // 1. Empty List of Tweets
     @Test
     public void testGuessFollowsGraphEmpty() {
         Map<String, Set<String>> followsGraph = SocialNetwork.guessFollowsGraph(new ArrayList<>());
-        
         assertTrue("expected empty graph", followsGraph.isEmpty());
     }
-    
+
+    // 2. Tweets Without Mentions
+    @Test
+    public void testTweetsWithoutMentions() {
+        Tweet t1 = new Tweet(1, "alice", "Hello everyone", time1);
+        Map<String, Set<String>> graph = SocialNetwork.guessFollowsGraph(List.of(t1));
+        assertTrue("expected empty map", graph.isEmpty());
+    }
+
+    // 3. Single Mention
+    @Test
+    public void testSingleMention() {
+        Tweet t1 = new Tweet(1, "ernie", "Hi @bert", time1);
+        Map<String, Set<String>> graph = SocialNetwork.guessFollowsGraph(List.of(t1));
+
+        assertTrue(graph.containsKey("ernie"));
+        assertTrue(graph.get("ernie").contains("bert"));
+    }
+
+    // 4. Multiple Mentions
+    @Test
+    public void testMultipleMentions() {
+        Tweet t1 = new Tweet(1, "ernie", "@bert @cookieMonster are cool", time1);
+        Map<String, Set<String>> graph = SocialNetwork.guessFollowsGraph(List.of(t1));
+
+        Set<String> expected = new HashSet<>(Arrays.asList("bert", "cookiemonster"));
+        assertEquals(expected, graph.get("ernie"));
+    }
+
+    // 5. Multiple Tweets from One User
+    @Test
+    public void testMultipleTweetsOneUser() {
+        Tweet t1 = new Tweet(1, "ernie", "Hi @bert", time1);
+        Tweet t2 = new Tweet(2, "ernie", "Also @cookie", time2);
+        Map<String, Set<String>> graph = SocialNetwork.guessFollowsGraph(List.of(t1, t2));
+
+        Set<String> expected = new HashSet<>(Arrays.asList("bert", "cookie"));
+        assertEquals(expected, graph.get("ernie"));
+    }
+
+    // 6. Empty Graph for influencers()
     @Test
     public void testInfluencersEmpty() {
         Map<String, Set<String>> followsGraph = new HashMap<>();
         List<String> influencers = SocialNetwork.influencers(followsGraph);
-        
         assertTrue("expected empty list", influencers.isEmpty());
     }
 
+    // 7. Single User Without Followers
+    @Test
+    public void testSingleUserWithoutFollowers() {
+        Map<String, Set<String>> graph = Map.of("alice", Set.of());
+        List<String> influencers = SocialNetwork.influencers(graph);
+        assertEquals(List.of("alice"), influencers);
+    }
+
+    // 8. Single Influencer
+    @Test
+    public void testSingleInfluencer() {
+        Map<String, Set<String>> graph = Map.of(
+                "alice", Set.of("bob"),
+                "charlie", Set.of("bob")
+        );
+        List<String> influencers = SocialNetwork.influencers(graph);
+        assertEquals("bob should be most followed", "bob", influencers.get(0));
+    }
+
+    // 9. Multiple Influencers
+    @Test
+    public void testMultipleInfluencers() {
+        Map<String, Set<String>> graph = Map.of(
+                "alice", Set.of("bob", "charlie"),
+                "dave", Set.of("charlie")
+        );
+        List<String> influencers = SocialNetwork.influencers(graph);
+        assertEquals("charlie should have most followers", "charlie", influencers.get(0));
+    }
+
+    // 10. Tied Influence
+    @Test
+    public void testTiedInfluence() {
+        Map<String, Set<String>> graph = Map.of(
+                "alice", Set.of("bob"),
+                "charlie", Set.of("dave")
+        );
+        List<String> influencers = SocialNetwork.influencers(graph);
+
+        assertTrue(influencers.containsAll(List.of("bob", "dave")));
+    }
     /*
      * Warning: all the tests you write here must be runnable against any
      * SocialNetwork class that follows the spec. It will be run against several
@@ -54,5 +134,6 @@ public class SocialNetworkTest {
      * define them in a different class. If you only need them in this test
      * class, then keep them in this test class.
      */
+
 
 }
